@@ -162,7 +162,7 @@ The GUID `{349c5851-65df-11da-9384-00065b846f21}` is the ASP.NET Web Application
 </system.webServer>
 ```
 
-Note: `<authentication mode="Windows"/>` is the default ASP.NET setting and does not mean the application uses Windows Authentication for its own auth. Open Dental has its own credential system (username/password in the DTO's `Credentials` object).
+Note: `<authentication mode="Windows"/>` is the default ASP.NET Web Application template setting. Open Dental does **not** use Windows Authentication for its own application auth — it has its own credential system (username/password in the DTO's `Credentials` object, validated in `DtoProcessor.cs` via `Userods.CheckUserAndPassword()`). This setting could likely be changed to `<authentication mode="None"/>` without impact, since the IIS Windows Authentication module is not used for Open Dental's application-level authentication. However, some deployments may rely on IIS-level Windows Authentication as a transport security layer (e.g., to restrict who can reach the endpoint at the network level), so the setting should be validated against actual deployment configurations before changing.
 
 ### 3.4 ASMX References in OpenDentalServer.csproj
 
