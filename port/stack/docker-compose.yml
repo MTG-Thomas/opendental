@@ -1,0 +1,107 @@
+# odstack — one-command disposable Linux lab for od-api-linux.
+#
+# From this directory:  docker compose up --build   (project name is pinned
+# to "odstack" below, so containers/nets/volumes are odstack-* — zero overlap
+# with the live lab containers od-api/od-mariadb/od-samba/od-tls-proxy/od-mt
+# on network odnet, which this stack never joins and never touches).
+#
+# Design rules honoured:
+#   - NO published host ports anywhere (no `ports:` section on purpose).
+#     All verification runs from inside the compose network, like the lab.
+#     Demo variant: add `ports: ["8443:443"]` to od-tls-proxy only (see STACK.md).
+#   - Service names deliberately mirror the lab hostnames (od-mariadb, od-api,
+#     od-tls-proxy, od-samba) so the UNMODIFIED lab Caddyfile works verbatim:
+#     its site block `od-tls-proxy` matches the SNI clients use, and its
+#     upstream `http://od-api:8080` resolves on this stack's isolated network.
+#     No container_name: is set (compose prefixes names odstack-*-1 instead),
+#     so there is no collision with the live lab's container names.
+#   - mariadb runs the vendor-exact od-my.cnf (committed copy in this dir) on
+#     a FRESH volume; seed applies ONCE via docker-entrypoint-initdb.d
+#     (fresh-volume-only mechanism — idempotent-safe by construction; re-runs
+#     of `up` skip initdb because the datadir is already initialized).
+#   - od-api is built from the ../od-api-linux Dockerfile, unmodified.
+#   - Caddyfile is the lab file via relative read-only volume (never copied).
+#   - Samba reuses the lab's exact dperson/samba share flags; a one-shot
+#     images-perms sidecar reproduces the lab's manual `chmod 777` of the
+#     share root (fresh named volumes are root-owned otherwise).
+name: odstack
+
+services:
+  od-mariadb:
+    image: mariadb:10.11
+    environment:
+      MARIADB_ROOT_PASSWORD: root # TEST-ONLY synthetic-data credential
+      MARIADB_DATABASE: opendental
+    volumes:
+      - db-data:/var/lib/mysql
+      - ./od-my.cnf:/etc/mysql/conf.d/od-my.cnf:ro
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -uroot -p\"$$MARIADB_ROOT_PASSWORD\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    networks:
+      - odnet
+
+  od-api:
+    build:
+      context: ../od-api-linux
+      dockerfile: Dockerfile
+    environment:
+      OD_DB_HOST: od-mariadb
+      OD_DB: opendental
+      OD_DB_USER: root
+      OD_DB_PASS: root # TEST-ONLY, matches MARIADB_ROOT_PASSWORD above
+    depends_on:
+      od-mariadb:
+        condition: service_healthy # healthy only AFTER initdb seed has applied
+    networks:
+      - odnet
+
+  od-tls-proxy:
+    image: caddy:2-alpine
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+    volumes:
+      - ../od-api-linux/tls/Caddyfile:/etc/caddy/Caddyfile:ro
+      - tls-data:/data
+      - tls-config:/config
+    depends_on:
+      od-api:
+        condition: service_started
+    networks:
+      - odnet
+
+  images-perms:
+    # Reproduces the lab's manual `chmod 777` of the share root (see research
+    # doc part 7: first `put` failed NT_STATUS_ACCESS_DENIED on a root-owned
+    # volume). One-shot; samba waits for it.
+    image: alpine
+    command: ["chmod", "777", "/mount/images"]
+    volumes:
+      - images:/mount/images
+    networks:
+      - odnet
+
+  od-samba:
+    image: dperson/samba
+    # Exact lab flags (research doc part 7 / ~/od-linux/samba_test.sh):
+    # share OpenDentImages on /mount/images, browseable, writable; user oduser/odpass.
+    command: ["-s", "OpenDentImages;/mount/images;yes;no;yes", "-u", "oduser;odpass"]
+    volumes:
+      - images:/mount/images
+    depends_on:
+      images-perms:
+        condition: service_completed_successfully
+    networks:
+      - odnet
+
+networks:
+  odnet:
+
+volumes:
+  db-data:
+  images:
+  tls-data:
+  tls-config:
