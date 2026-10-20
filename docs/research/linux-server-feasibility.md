@@ -453,6 +453,35 @@ registration flows that need OD cooperation regardless). Full matrix in
 `docs/research/poc/cdt-wine/README.md`. No ADA content
 was extracted at any point.
 
+### Addendum 2026-10-20 (part 3) — REST API: the most portable service seam
+
+The public spec ([apispecification](https://www.opendental.com/site/apispecification.html), ~120
+resources) plus hosting docs ([apilocal](https://www.opendental.com/site/apilocal.html)) reshape the
+"API services" row (§2) from "Windows-only" to "most portable seam; host replaceable, HQ auth
+coupling remains":
+
+- **Modes**: Local (`opendental.exe`-embedded `HttpListener` on :30222, **fully in GPL source**:
+  `FormOpenDental.cs` `_httpListenerApi` + `HttpListenerApiCallback`), Service (proprietary
+  `OpenDentalAPIService.exe` on :30223, not in tree), Remote (office reached via eConnector from
+  `api.opendental.com`). Local binds 127.0.0.1 only; the in-code comments cite `netsh http add
+  urlacl` admin requirements for wider binding — a Windows-ism that simply doesn't exist on Linux
+  (Kestrel binds freely).
+- **The dispatch blob is tiny**: `ODApi.dll` v22.1.0.0 is **8 types** (`ApiMain`, `ApiRequest`,
+  `ApiReturnResult`, `QueryParam`, `ReturnStatusCode`, `SecurityPerm`, `ApiEvents`...), net48 with
+  `System.Drawing`/`System.Web` refs. It is only the HTTP→method envelope
+  (`ConvertHttpListenerRequest` / `PassRequestToODApi` / `IsAllowedToOpenPort`).
+- **The 117 resource handlers are GPL**: `*ForApi` methods (`GetAppointmentsForApi`,
+  `GetPaymentsForApi`, ...) live in `OpenDentBusiness/Data Interface/*` alongside the `APIKeys` /
+  `ApiSubscriptions` table CRUD. Outbound helpers (`APIRequest`/`IApiRequest`: `HttpClient` +
+  Newtonsoft.Json) are portable as-is. Blob string-table confirms routing by these method names.
+- **Auth is HQ-coupled by design**: `Authorization: ODFHIR DevKey/CustKey` from the developer portal
+  (BAA + pricing tiers); even Local/Service modes validate with HQ (cached 6h). A Linux host must
+  still phone home — no bypass possible or attempted. FHIR server handlers are not in-tree.
+- **Conformance path exists and is safe**: vendor Postman collections + hosted test DB + public test
+  credentials mean a future Linux API host can be validated without touching production or
+  reverse-engineering the SOAP DTO layer. This makes the REST API — not the middle tier — the
+  recommended first wire-compat target for any Linux backend effort.
+
 ## Appendix C — Files added by this spike
 
 - `docs/research/linux-server-feasibility.md` (this file)
