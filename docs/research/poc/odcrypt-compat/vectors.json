@@ -1,0 +1,185 @@
+{
+    "generator":  "original ODCrypt.dll",
+    "asmVersion":  "24.3.63.0",
+    "clr":  "4.0.30319.42000",
+    "GenerateKey":  {
+                        "len":  64,
+                        "sample":  "19BEFB5743A18850B02D2B63FCAAC5F4286869BEA6460D5C02B63BF7A07D33A1"
+                    },
+    "GenerateIV":  {
+                       "len":  32,
+                       "sample":  "FCA975AE9308379B8F00F0929DDE1710"
+                   },
+    "STATIC_INIT_VECTOR":  "00000000000000000000000000000000",
+    "StringToBytes_ABC_ascii":  "qw==",
+    "StringToBytes_ABC_unicode":  "QUJD",
+    "BytesToString_ascii_hex":  "AB",
+    "BytesToString_ascii_raw":  "«",
+    "EncodeForUnicode":  "hello test ~!",
+    "DecodeForUnicode":  "hello test ~!",
+    "EncryptString_webTrue":  {
+                                  "ok":  false,
+                                  "encrypted":  "",
+                                  "fail":  "The specified initialization vector (IV) does not match the block size for this algorithm.\r\nParameter name: iv"
+                              },
+    "DecryptString_webTrue":  {
+                                  "ok":  true,
+                                  "fail":  "",
+                                  "plain":  ""
+                              },
+    "EncryptString_webFalse":  {
+                                   "ok":  false,
+                                   "encrypted":  "",
+                                   "fail":  "The specified initialization vector (IV) does not match the block size for this algorithm.\r\nParameter name: iv"
+                               },
+    "DecryptString_webFalse":  {
+                                   "ok":  true,
+                                   "fail":  "",
+                                   "plain":  ""
+                               },
+    "EncryptString_defaultkey":  {
+                                     "ok":  true,
+                                     "encrypted":  "C4A84A24E40670088F8AFC990570475329C1B8849B116ED75AD30CB868D74E24",
+                                     "fail":  ""
+                                 },
+    "DecryptString_defaultkey":  {
+                                     "ok":  true,
+                                     "fail":  "",
+                                     "plain":  "default key path"
+                                 },
+    "DecryptString_wrongkey":  {
+                                   "ok":  true,
+                                   "fail":  "",
+                                   "plain":  ""
+                               },
+    "CompressString":  {
+                           "ok":  true,
+                           "zipped":  "H4sIAAAAAAAEACuuzCvJSC3JTFYoHmWNEBYArsYoHfQBAAA=",
+                           "fail":  ""
+                       },
+    "DecompressString":  {
+                             "ok":  true,
+                             "plainLen":  500,
+                             "fail":  "",
+                             "plainPrefix":  "synthetic synthetic "
+                         },
+    "MD5_Hash_abc_ascii_b64":  "JAitEfnrgw2nSeKjainv9w==",
+    "MD5_Hash_abc_ascii_hex":  "2408ad11f9eb830da749e2a36a29eff7",
+    "Sha3_Hash_abc_ascii_b64":  "B3qjOIKxqvBtpBx+07akDXEo3uI1BcomicR2NxEcRwFkX6vF7hudzQOSMdLQhr/5gZzi2oZHQypzlmSU3Rp3rQ==",
+    "Sha3_Hash_abc_ascii_hex":  "077aa33882b1aaf06da41c7ed3b6a40d7128dee23505ca2689c47637111c4701645fabc5ee1b9dcd039231d2d086bff9819ce2da8647432a73966494dd1a77ad",
+    "GenerateSalt_16":  {
+                            "len":  24,
+                            "value":  "OH6T0AMStKxLqxDL4143EA=="
+                        },
+    "ConstantEquals_tt":  true,
+    "ConstantEquals_tf":  false,
+    "RandomString_10_len":  4,
+    "RandomString_10_val":  "tRs=",
+    "Arrays_clone_eq":  true,
+    "key64_len":  64,
+    "iv32_len":  32,
+    "Encrypt2_webTrue_len0":  {
+                                  "ok":  true,
+                                  "encrypted":  "",
+                                  "fail":  ""
+                              },
+    "Decrypt2_webTrue_len0":  {
+                                  "ok":  true,
+                                  "fail":  "",
+                                  "plain":  ""
+                              },
+    "Encrypt2_webTrue_len16":  {
+                                   "ok":  true,
+                                   "encrypted":  "10D096F6548C36A230C6547D1E5A766C477F5F096852606D2C85CACE9B77D9DD",
+                                   "fail":  ""
+                               },
+    "Decrypt2_webTrue_len16":  {
+                                   "ok":  true,
+                                   "fail":  "",
+                                   "plain":  "1234567890123456"
+                               },
+    "Encrypt2_webTrue_len32":  {
+                                   "ok":  true,
+                                   "encrypted":  "10D096F6548C36A230C6547D1E5A766C4F854C6920801689225312DBFDE4047A32B3BE85F18E57FD17F561D556994938",
+                                   "fail":  ""
+                               },
+    "Decrypt2_webTrue_len32":  {
+                                   "ok":  true,
+                                   "fail":  "",
+                                   "plain":  "12345678901234567890123456789012"
+                               },
+    "Encrypt2_webTrue_len33":  {
+                                   "ok":  true,
+                                   "encrypted":  "B74D3EB1A89844A5A09FC9B7305BE5921422A5536F2890DEBB6FCBC2B998C9FD6BA9A1ECA151091E04DE4B91343AB61B",
+                                   "fail":  ""
+                               },
+    "Decrypt2_webTrue_len33":  {
+                                   "ok":  true,
+                                   "fail":  "",
+                                   "plain":  "Linux PoC synthetic plaintext 123"
+                               },
+    "Encrypt2_webFalse_len0":  {
+                                   "ok":  true,
+                                   "encrypted":  "",
+                                   "fail":  ""
+                               },
+    "Decrypt2_webFalse_len0":  {
+                                   "ok":  true,
+                                   "fail":  "",
+                                   "plain":  ""
+                               },
+    "Encrypt2_webFalse_len16":  {
+                                    "ok":  true,
+                                    "encrypted":  "\u0010ÐöT6¢0ÆT}\u001eZvlG_\thR`m,\u0085ÊÎwÙÝ",
+                                    "fail":  ""
+                                },
+    "Decrypt2_webFalse_len16":  {
+                                    "ok":  true,
+                                    "fail":  "",
+                                    "plain":  "1234567890123456"
+                                },
+    "Encrypt2_webFalse_len32":  {
+                                    "ok":  true,
+                                    "encrypted":  "\u0010ÐöT6¢0ÆT}\u001eZvlO\u0085Li \u0016\"S\u0012Ûýä\u0004z2³¾\u0085ñWý\u0017õaÕVI8",
+                                    "fail":  ""
+                                },
+    "Decrypt2_webFalse_len32":  {
+                                    "ok":  true,
+                                    "fail":  "",
+                                    "plain":  "12345678901234567890123456789012"
+                                },
+    "Encrypt2_webFalse_len33":  {
+                                    "ok":  true,
+                                    "encrypted":  "·M\u003e±¨D¥ É·0[å\u0014\"¥So(Þ»oËÂ¹Éýk©¡ì¡Q\t\u001e\u0004ÞK4:¶\u001b",
+                                    "fail":  ""
+                                },
+    "Decrypt2_webFalse_len33":  {
+                                    "ok":  true,
+                                    "fail":  "",
+                                    "plain":  "Linux PoC synthetic plaintext 123"
+                                },
+    "Encrypt_accent":  {
+                           "ok":  true,
+                           "encrypted":  "948EF41BE51F22CD7FF1CAD061CD7F7B",
+                           "fail":  ""
+                       },
+    "Decrypt_accent":  {
+                           "ok":  true,
+                           "fail":  "",
+                           "plain":  "héllo"
+                       },
+    "EncodeForUnicode_nonascii":  "h\u000000e9llo w\u000000f6rld \u00002713 \u00002192",
+    "DecodeForUnicode_nonascii":  "héllo wörld ✓ →",
+    "BytesToString_edge_raw":  "ÿ",
+    "BytesToString_edge_hex":  "8090FF",
+    "StringToBytes_edge_roundtrip":  {
+                                         "outB64":  "gJD/",
+                                         "inLen":  3
+                                     },
+    "EncodeForUnicode_DEL":  "ab",
+    "DecodeForUnicode_loneNUL":  {
+                                     "message":  "Exception calling \"DecodeForUnicode\" with \"1\" argument(s): \"Could not find any recognizable digits.\"",
+                                     "threw":  "System.Management.Automation.MethodInvocationException"
+                                 },
+    "DecodeForUnicode_validNUL":  "Aé"
+}

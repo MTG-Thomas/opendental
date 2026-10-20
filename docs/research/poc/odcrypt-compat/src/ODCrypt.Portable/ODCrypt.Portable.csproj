@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>ODCrypt.Portable</AssemblyName>
+    <RootNamespace>ODCrypt</RootNamespace>
+    <Version>24.3.63.0</Version>
+    <Description>Clean-room, wire-compatible reimplementation of the ODCrypt.dll API surface observed in Open Dental 24.3. Written from scratch against black-box test vectors (see ../vectors.json). No original source used.</Description>
+  </PropertyGroup>
+</Project>

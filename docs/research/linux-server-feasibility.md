@@ -415,6 +415,31 @@ fine; republishing the blobs' source is not. Findings:
   port's `ODCrypt` blocker downgrades from "replace unknown blob" to "clean-room standard crypto
   with compat tests." `CDT` remains hard (allowlist gate + ADA-licensed content, no source).
 
+### Addendum 2026-10-20 (part 2) — ODCrypt reimplemented, wire-compatible; CDT under Wine
+
+**`ODCrypt.Portable` (net8.0, zero deps) passes 47/47 black-box vectors on Windows AND Linux**
+(`docs/research/poc/odcrypt-compat/`; hermetic `docker build/run` included). Vectors were generated
+from the original blob under .NET Framework (`tools/make_vectors.ps1`); the port is fresh code.
+Recovered wire facts: AES-CBC/PKCS7 with hex key/IV, hex output when web-friendly / raw Latin-1
+otherwise, **UTF-8 plaintext codec** (Latin-1 falsified by accent vector), NUL+4-hex unicode
+escapes, gzip+base64 compression (payload bytes vary by compressor version — cross-decompress
+verified both directions instead), **NIST SHA3-512** (Keccak-original-padding falsified), standard
+MD5. Explicit gaps, not silent: default-key 4-arg overloads route through deployer-set
+`ODCryptDefaults` (the embedded constant is not reproduced; only in-tree user is HQ registration
+comms, which needs OD cooperation anyway); `EncryptFile/DecryptFile` are thin wrappers without
+original vectors. `ODCrypt` is hereby **removed from the Linux-port blocker list**.
+
+**CDT under Wine 11: runs as a process, fails on the same obfuscation wall.** A net48 probe harness
+(`docs/research/poc/cdt-wine/`, synthetic inputs only, no ADA-content calls) executes under
+`scottyhardy/docker-wine` with console I/O working — but Wine's built-in .NET is wine-mono, and
+all three probes (`VerifyCallingAssembly`, `Conceal/RevealClearinghouse`, `TryEncrypt/Decrypt`)
+throw the identical `InvalidProgramException: Invalid IL ... pop` seen on Mono. So Wine answers
+"how to call" (API confirmed callable as a Windows process; gate semantics observable) but not
+"how to execute" without real .NET Framework via winetricks (`dotnet48` install attempted
+separately; result pending). Even under real Framework, expect the filename-allowlist gate to
+reject non-OD caller names — a follow-up probe should name its binary accordingly. No ADA content
+was extracted at any point.
+
 ## Appendix C — Files added by this spike
 
 - `docs/research/linux-server-feasibility.md` (this file)
