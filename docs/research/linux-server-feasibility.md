@@ -389,6 +389,32 @@ Spot TFM via embedded `\.NETFramework,Version=` strings; versions via `monop` wh
 - `CDT.*` call sites include procedure codes, claims, payplans/paysplits, `PrefC`, registration keys, clearinghouse bridges, `DataAction`/`MiscData`, EService metrics.
 - Net effect: **no meaningful service path avoids at least one closed blob.**
 
+### Addendum 2026-10-20 — ILSpy decompilation of the closed blobs (read-only, local only)
+
+Yes, both DLLs decompile: `ilspycmd` (ILSpy 9.1) produced ~12k lines for `ODCrypt.dll`
+and ~2.2k for `CDT.dll` into a temp dir outside the repo (deleted after review; decompiled
+blob source is **not** committed — copyright + ADA EULA). Interop-analysis decompilation is
+fine; republishing the blobs' source is not. Findings:
+
+- **Both are pure managed, zero `DllImport`/P-Invoke.** The Mono `InvalidProgramException`
+  is Dotfuscator control-flow/string-encryption IL that .NET Framework JIT accepts and Mono 6.12
+  rejects — a runtime incompatibility, not native code.
+- **`ODCrypt` = standard algorithms**: AES via `AesCryptoServiceProvider` (key/IV as 7-bit ASCII
+  strings), `RNGCryptoServiceProvider`, C# MD5 + SHA3/Keccak. Structure and algorithms fully
+  recoverable → a clean-room reimplementation preserving wire compat (same mode/padding/encoding
+  on the paths OD uses) is very feasible and is the lawful route if the port proceeds.
+- **`CDT.VerifyCallingAssembly()` is a caller-allowlist gate, not a strong-name check**: it
+  stack-walks (`StackFrame`) calling-assembly file names/locations against an encrypted allowlist
+  plus the entry assembly. It is invoked from the `ENCRYPT_KEY` / `SFTP_ENCRYPT_KEY` /
+  `CLEARINGHOUSE_ENCRYPT_KEY` / `ENCRYPT_KEY_V2` property getters — i.e., **every CDT crypto op
+  is gated**. Portable in principle (filename comparison) but brittle across Linux layouts.
+- **`CDT.GetADA*` returns `System.Drawing.Image`** — CDT itself carries the GDI+ dependency,
+  independent of `WebSerializer.cs`.
+- ADA procedure-code content stays string-encrypted in the binary; it was not extracted (EULA hygiene).
+- Net effect on the feasibility matrix: Mono stays disqualified (unchanged), but the native-.NET
+  port's `ODCrypt` blocker downgrades from "replace unknown blob" to "clean-room standard crypto
+  with compat tests." `CDT` remains hard (allowlist gate + ADA-licensed content, no source).
+
 ## Appendix C — Files added by this spike
 
 - `docs/research/linux-server-feasibility.md` (this file)
