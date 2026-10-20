@@ -453,6 +453,37 @@ registration flows that need OD cooperation regardless). Full matrix in
 `docs/research/poc/cdt-wine/README.md`. No ADA content
 was extracted at any point.
 
+### Addendum 2026-10-20 (part 6) — API Events protocol, HL7 transports, MySQL hardening
+
+Three more doc pages converted into buildable detail:
+
+**API Events (`apievents`): a complete webhook spec a Linux API host can implement.** Outbound POST
+to the subscriber's `EndPointUrl` with `Authorization: <CustApiKey>`, `Workstation:` machine name
+(22.4.28+), `Event-Type:` (`WatchTable: X` or `UiEventType: Y`). Database events: poll `WatchTable`
+for rows modified since the subscription's `DateTimeStart` every `PollingSeconds`; max 1000 elements
+per fire (23.2.1+, batched); `DateTimeStart` advances only on successful delivery; on reconnect,
+up to 3 days of backfill included. UI events (`PatientSelected`) fire instantly from workstations.
+Version annotations scope our snapshot: `Operatory`/`Provider`/`Schedule` watchables (24.2.11) are
+in 24.3; `ToothInitial` (24.4.30), `LabCase`/`MedicationPat` (25.4+), `*Deleted` variants (26.1+) are
+not. A Linux host takes the poller role the API Service holds today; the `ApiSubscription` table
+CRUD is already GPL. (Design only — no events code written in this spike.)
+
+**HL7 (`hl7`): transport semantics for a future Linux design.** Two transports: shared folders
+(incoming/outgoing paths in HL7Def, server-machine-relative; picked-up message files disappear) and
+TCP/IP; service version must exactly match the main program; `<HL7verbose>True</HL7verbose>` in
+`FreeDentalConfig.xml` plus Event Viewer logging for troubleshooting; multi-DB hosting = multiple
+uniquely-named services. Confirms the file-drop polling shape (`ServiceHL7` timers) and the
+version-lock constraint. HL7 stays Windows-side per §6; this is recorded for completeness.
+
+**MySQL Security (`securitymysql`): hardening for the Linux runbook.** Never expose 3306 past the
+LAN (firewall exception on server, never on router); mind `root@localhost` vs `root@%` as distinct
+principals; stored workstation passwords are obfuscated in `FreeDentalConfig.xml` (CDT-encrypted —
+see part 2/4); middle-tier dual-user model (full-priv user for everything incl. `opendentalbackup_*`
+wildcard, `UserLow` with only SELECT + CREATE TEMPORARY TABLES for report queries as an
+injection backstop); vendors get read-only at most. Caveat: MariaDB data-at-rest encryption is
+InnoDB-only, hence incompatible with OD's required MyISAM engine — encryption at rest must live
+at the disk/volume layer on Linux.
+
 ### Addendum 2026-10-20 (part 3) — REST API: the most portable service seam
 
 The public spec ([apispecification](https://www.opendental.com/site/apispecification.html), ~120
