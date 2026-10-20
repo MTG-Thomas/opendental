@@ -453,6 +453,33 @@ registration flows that need OD cooperation regardless). Full matrix in
 `docs/research/poc/cdt-wine/README.md`. No ADA content
 was extracted at any point.
 
+### Addendum 2026-10-20 (part 7) — remote Linux host: vendor-exact MariaDB + Samba proof
+
+Experiments moved to **fleet-r02** (Debian 13, 24 CPU, ~7.5 GB avail RAM, Docker 26.1; shared box
+running unrelated bifrost test stacks — our footprint is namespaced `od-*` and one-command
+removable). LAN remotes were unreachable from here; the laptop loopback and both Proxmox
+hypervisors were rejected as targets (self, and hypervisors respectively).
+
+- **MariaDB matches vendor `server.cnf` exactly** (better than the local PoC): fresh `od-my.cnf`
+  (`default-storage-engine=MyISAM`, `max_allowed_packet=40M`, `max_connections=3000`, `sql_mode=""`,
+  `explicit_defaults_for_timestamp=1`, `lower_case_table_names=1`) on a fresh volume, no published
+  ports (odnet-internal only). Subset schema applies; `od-linux-heartbeat` → `POC_SUCCESS`;
+  `odcrypt-verify` → **187/187**. Files transferred via `git archive` of committed state (no blobs,
+  no build outputs); repro at `~/od-linux/` (`od-my.cnf`, `samba_test.sh`).
+- **Samba closes the OpenDentImages question** (`dperson/samba`, `~/od-linux/samba_test.sh`):
+  PUT/GET/DEL all work with byte-identical round-trip; critically, **case-insensitive GET works**
+  (`get xray_001.png` retrieves `XRAY_001.png`) — Samba's default `case sensitive = auto`
+  emulates Windows semantics for clients, neutralizing the raw-ext4 case trap from §4.3 for the
+  share path (DB-side `lower_case_table_names=1` still required). Two ops notes: share root must be
+  made writable for the Samba user (initial `put` failed `NT_STATUS_ACCESS_DENIED` on a root-owned
+  volume until `chmod 777`), and the image's default `recycle` VFS retains deletes in `.deleted`
+  (disable or prune for production).
+- Remote footprint (all disposable): containers `od-mariadb`, `od-samba`; images
+  `mariadb:10.11`, `od-linux-heartbeat`, `odcrypt-verify`, `dperson/samba`, `alpine`,
+  `mcr.microsoft.com/dotnet/sdk:8.0`; network `odnet`; volumes `od-mariadb-data`, `od-images`;
+  workdir `~/od-linux`. Teardown: `docker rm -f od-mariadb od-samba; docker network rm odnet;
+  docker volume rm od-mariadb-data od-images; rm -rf ~/od-linux`.
+
 ### Addendum 2026-10-20 (part 6) — API Events protocol, HL7 transports, MySQL hardening
 
 Three more doc pages converted into buildable detail:
