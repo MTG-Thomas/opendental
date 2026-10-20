@@ -510,6 +510,29 @@ coupling remains":
 - The published `databaseschema` page failed to extract; no loss — `db/skeema/` (408 tables) plus
   in-source `Enumerations.cs` code tables (`eServiceCode`, `InvalidType`, …) remain authoritative.
 
+### Addendum 2026-10-20 (part 5) — schema drift 24.3 → 26.2 is additive; service tables stable
+
+The schema page turned out to be a link to the machine-readable
+`OpenDentalDocumentation26-2.xml` (v26.2.0.0, ~1.5 MB: per-table/column summaries, FKs, inline
+enums) — the current-era counterpart of our in-tree `DocumentationBuilder/OpenDentalDocumentation.xml`
+(v24.3.0.0). Compared locally (published XML fetched, analyzed, not committed):
+
+- **430 vs 408 tables: +22 new, 0 removed.** Drift is purely additive at table level. New tables
+  reveal post-24.3 proprietary development: team chat (`chat`, `chatmsg`, `chatattach`,
+  `chatreaction`, `chatuserod`, `chatuserattach`), Glidewell lab (`glidewellacct`, `glidewellmsg`),
+  PaySuite (`paysuitepayment`, `paysuitepaymentdetail`), school/course management (5 tables),
+  plus `branding`, `deletedobj`, `feeschednote`, `inspending`, `labcaseproduct`, `queryfilter`,
+  `sequencecounter`. Notably **no new service-infrastructure tables** — the background-service
+  architecture did not gain schema surface.
+- **Service tables are column-identical**: `eservicesignal` (9 cols), `signalod` (8), `preference`
+  (4), `alertitem` (11), `userod` (24), `apikey` (3), `computer` (3) — same names and types in both
+  versions. Signal/auth/API-key plumbing is stable across the GPL→proprietary boundary.
+- Compat reading (refines §5.1 with data): a 24.3 backend cannot serve current clients touching any
+  of the 22 new tables ("assume no" stands, now scoped), but a Linux service host built on 24.3
+  handles signals, alerts, auth, and API keys exactly as 26.2 does — the stable core is the right
+  first surface for any port, and the published XML is the machine-readable contract to build
+  against (table summaries + FK graph + enums, far richer than DDL alone).
+
 ## Appendix C — Files added by this spike
 
 - `docs/research/linux-server-feasibility.md` (this file)
