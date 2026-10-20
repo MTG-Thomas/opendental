@@ -4,7 +4,7 @@ Target: `ODCrypt.dll` 24.3.63.0 (committed blob, no source). Method: black-box t
 generated from the original under .NET Framework (`tools/make_vectors.ps1`), fresh implementation
 in `src/ODCrypt.Portable` (net8.0, zero dependencies), verified by `src/Verify` on Windows **and** Linux.
 
-**Status: 47/47 deterministic vectors pass on both runtimes** (plus shape checks for random outputs).
+**Status: 187/187 vectors pass on both runtimes** (47 fixed + 140 seeded fuzz: 100 encrypt/decrypt, 20 hash, 20 unicode) plus shape checks for random outputs.
 
 ## Recovered wire facts (all pinned by vectors, see vectors.json)
 
@@ -52,7 +52,7 @@ dotnet run --project src/Verify -- vectors.json
 # 3. Verify on Linux (hermetic):
 docker build -t odcrypt-verify .
 docker run --rm odcrypt-verify
-# expect: 47 passed, 0 failed (plus informational gzip line)
+# expect: 187 passed, 0 failed (plus informational gzip line)
 ```
 
 Clean-room note: written from observed API + standard crypto + vectors. No original source used

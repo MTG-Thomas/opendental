@@ -417,8 +417,10 @@ fine; republishing the blobs' source is not. Findings:
 
 ### Addendum 2026-10-20 (part 2) — ODCrypt reimplemented, wire-compatible; CDT under Wine
 
-**`ODCrypt.Portable` (net8.0, zero deps) passes 47/47 black-box vectors on Windows AND Linux**
-(`docs/research/poc/odcrypt-compat/`; hermetic `docker build/run` included). Vectors were generated
+**`ODCrypt.Portable` (net8.0, zero deps) passes 187/187 black-box vectors on Windows AND Linux**
+(`docs/research/poc/odcrypt-compat/`; hermetic `docker build/run` included): 47 fixed vectors plus
+140 seeded fuzz cases (100 randomized encrypt/decrypt with random keys/IVs/plaintexts, 20 hash,
+20 unicode round-trips including throw-parity). Vectors were generated
 from the original blob under .NET Framework (`tools/make_vectors.ps1`); the port is fresh code.
 Recovered wire facts: AES-CBC/PKCS7 with hex key/IV, hex output when web-friendly / raw Latin-1
 otherwise, **UTF-8 plaintext codec** (Latin-1 falsified by accent vector), NUL+4-hex unicode
@@ -437,7 +439,18 @@ throw the identical `InvalidProgramException: Invalid IL ... pop` seen on Mono. 
 "how to call" (API confirmed callable as a Windows process; gate semantics observable) but not
 "how to execute" without real .NET Framework via winetricks (`dotnet48` install attempted
 separately; result pending). Even under real Framework, expect the filename-allowlist gate to
-reject non-OD caller names — a follow-up probe should name its binary accordingly. No ADA content
+reject non-OD caller names — a follow-up probe should name its binary accordingly.
+
+**CDT API behavior mapped black-box on Framework (no Wine needed).** `TryEncrypt/TryDecrypt`,
+`Encrypt/Decrypt`, `Conceal/RevealClearinghouse`, `EncryptSftp/DecryptSftp` all work **ungated**
+from foreign callers: deterministic, base64, 16-byte-block/PKCS7 shape, round-trips pass
+(vectors in `vectors_cdt.json`). `CreateSaltedHash` is the hard gate — throws
+`Unable to find assembly to verify.` outside OD callers, so its format is unrecoverable black-box
+and a port needs hash migration (re-hash on login). `ValidateKey` is permissive (true for every
+probed input); `GenerateRandKey` returns empty outside the gate; garbage `TryDecrypt` fails open
+(returns input). CDT crypto deliberately **not reimplemented** (lower value: protects ADA and
+registration flows that need OD cooperation regardless). Full matrix in
+`docs/research/poc/cdt-wine/README.md`. No ADA content
 was extracted at any point.
 
 ## Appendix C — Files added by this spike

@@ -117,4 +117,45 @@ Check("RandomString_shape", CryptUtil.RandomString(10).Length == v.GetProperty("
 Check("Arrays", ODCrypt.Arrays.AreEqual(new byte[] { 1, 2, 3 }, ODCrypt.Arrays.Clone(new byte[] { 1, 2, 3 })) == v.GetProperty("Arrays_clone_eq").GetBoolean());
 
 Console.WriteLine($"--- {pass} passed, {fail} failed ---");
+// --- seeded fuzz differential ---
+{
+	int i = 0;
+	foreach (JsonElement fz in v.GetProperty("Fuzz_encrypt").EnumerateArray()) {
+		i++;
+		string failText = "";
+		bool ok = Encryption.EncryptString(Get(fz, "pt"), fz.GetProperty("wf").GetBoolean(), Get(fz, "key"), Get(fz, "iv"), out string enc, ref failText);
+		bool same = ok == fz.GetProperty("ok").GetBoolean() && enc == Get(fz, "enc");
+		if (same && ok) {
+			string f2 = "";
+		bool ok2 = Encryption.DecryptString(enc, fz.GetProperty("wf").GetBoolean(), Get(fz, "key"), Get(fz, "iv"), out string back, ref f2);
+			same = ok2 && back == Get(fz, "pt");
+		}
+		Check($"Fuzz_enc[{i}]", same, $"ok={ok}");
+	}
+	foreach (JsonElement fh in v.GetProperty("Fuzz_hash").EnumerateArray()) {
+		i++;
+		byte[] input = Convert.FromBase64String(Get(fh, "input"));
+		bool m = string.Equals(Convert.ToHexString(ODCrypt.MD5.Hash(input)), Get(fh, "md5"), StringComparison.OrdinalIgnoreCase);
+		bool s = string.Equals(Convert.ToHexString(ODCrypt.Sha3.Hash(input)), Get(fh, "sha3"), StringComparison.OrdinalIgnoreCase);
+		Check($"Fuzz_hash[{i}]", m && s);
+	}
+	foreach (JsonElement fu in v.GetProperty("Fuzz_unicode").EnumerateArray()) {
+		i++;
+		string encU = Encryption.EncodeForUnicode(Get(fu, "plain"));
+		bool same = encU == Get(fu, "encoded");
+		if (same) {
+			bool wantOk = fu.GetProperty("decodeOk").GetBoolean();
+			try {
+				string back = Encryption.DecodeForUnicode(encU);
+				same = wantOk && back == Get(fu, "decoded");
+			}
+			catch (FormatException) {
+				same = !wantOk;
+			}
+		}
+		Check($"Fuzz_uni[{i}]", same);
+	}
+}
+
+Console.WriteLine($"--- {pass} passed, {fail} failed (incl. fuzz) ---");
 return fail == 0 ? 0 : 1;

@@ -120,5 +120,40 @@ try {
 }
 $v['DecodeForUnicode_validNUL'] = [ODCrypt.Encryption]::DecodeForUnicode('A' + [char]0x00 + '00e9')
 
+# --- seeded fuzz differential (regenerable: System.Random(42)) ---
+$r = New-Object Random(42)
+function RandHex($n) { -join ((1..$n) | ForEach-Object { '0123456789ABCDEF'[$r.Next(16)] }) }
+function RandLatin($n) { -join ((1..$n) | ForEach-Object { [char]$r.Next(256) }) }
+$fuzz = @()
+for ($i = 0; $i -lt 100; $i++) {
+  $pt = RandLatin $r.Next(81)
+  $fk = RandHex 64; $fiv = RandHex 32; $fwf = ($r.Next(2) -eq 0)
+  $fe = ''; $ff = ''
+  $fok = [ODCrypt.Encryption]::EncryptString($pt, $fwf, $fk, $fiv, [ref]$fe, [ref]$ff)
+  $fuzz += @{ pt = $pt; wf = $fwf; key = $fk; iv = $fiv; ok = $fok; enc = $fe }
+}
+$v['Fuzz_encrypt'] = $fuzz
+$fuzzH = @()
+for ($i = 0; $i -lt 20; $i++) {
+  $n = $r.Next(129)
+  $bytes = [byte[]]::new($n)
+  for ($j = 0; $j -lt $n; $j++) { $bytes[$j] = $r.Next(256) }
+  $b64 = [Convert]::ToBase64String($bytes)
+  $fuzzH += @{ input = $b64; md5 = -join (([ODCrypt.MD5]::Hash($bytes)) | ForEach-Object { $_.ToString('x2') }); sha3 = -join (([ODCrypt.Sha3]::Hash($bytes)) | ForEach-Object { $_.ToString('x2') }) }
+}
+$v['Fuzz_hash'] = $fuzzH
+$fuzzU = @()
+for ($i = 0; $i -lt 20; $i++) {
+  $s = -join ((1..$r.Next(40)) | ForEach-Object { [char]$r.Next(512) })
+  $enc = [ODCrypt.Encryption]::EncodeForUnicode($s)
+  try {
+    $dec = [ODCrypt.Encryption]::DecodeForUnicode($enc)
+    $fuzzU += @{ plain = $s; encoded = $enc; decodeOk = $true; decoded = $dec }
+  } catch {
+    $fuzzU += @{ plain = $s; encoded = $enc; decodeOk = $false; decodeThrow = $_.Exception.Message }
+  }
+}
+$v['Fuzz_unicode'] = $fuzzU
+
 [IO.File]::WriteAllText($OutPath, ($v | ConvertTo-Json -Depth 6))
 Write-Output "wrote $OutPath"

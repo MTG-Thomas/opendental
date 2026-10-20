@@ -1,0 +1,87 @@
+{
+    "generator":  "original CDT.dll",
+    "asmVersion":  "24.3.63.0",
+    "clr":  "4.0.30319.42000",
+    "VerifyCallingAssembly_from_powershell":  {
+                                                  "message":  "Exception calling \"VerifyCallingAssembly\" with \"0\" argument(s): \"Unable to find assembly to verify.\"",
+                                                  "type":  "System.Management.Automation.MethodInvocationException",
+                                                  "threw":  true
+                                              },
+    "TryRT_len0":  {
+                       "encPrefix":  "",
+                       "ok":  true,
+                       "roundtrip":  true,
+                       "encLen":  0,
+                       "deterministic":  true
+                   },
+    "TryRT_len1":  {
+                       "encPrefix":  "/EqMNhzJ8xbmjB9K",
+                       "ok":  true,
+                       "roundtrip":  true,
+                       "encLen":  24,
+                       "deterministic":  true
+                   },
+    "TryRT_len19":  {
+                        "encPrefix":  "Ww+rnMO+u/ry+vpE",
+                        "ok":  true,
+                        "roundtrip":  true,
+                        "encLen":  44,
+                        "deterministic":  true
+                    },
+    "TryRT_len100":  {
+                         "encPrefix":  "GfAyO232p3UuNB8a",
+                         "ok":  true,
+                         "roundtrip":  true,
+                         "encLen":  152,
+                         "deterministic":  true
+                     },
+    "Pair_Encrypt":  {
+                         "okE":  true,
+                         "roundtrip":  true,
+                         "okD":  true,
+                         "encLen":  44
+                     },
+    "Pair_ConcealClearinghouse":  {
+                                      "okE":  true,
+                                      "roundtrip":  true,
+                                      "okD":  true,
+                                      "encLen":  44
+                                  },
+    "Pair_EncryptSftp":  {
+                             "okE":  true,
+                             "roundtrip":  true,
+                             "okD":  true,
+                             "encLen":  44,
+                             "encPrefix":  "ThgqxTLpv0HVwlun"
+                         },
+    "SaltedHash_True":  {
+                            "ok":  false,
+                            "message":  "Exception calling \"CreateSaltedHash\" with \"2\" argument(s): \"Unable to find assembly to verify.\"",
+                            "type":  "System.Management.Automation.MethodInvocationException"
+                        },
+    "SaltedHash_False":  {
+                             "ok":  false,
+                             "message":  "Exception calling \"CreateSaltedHash\" with \"2\" argument(s): \"Unable to find assembly to verify.\"",
+                             "type":  "System.Management.Automation.MethodInvocationException"
+                         },
+    "ValidateKey_len0":  {
+                             "result":  true,
+                             "ok":  true
+                         },
+    "ValidateKey_len9":  {
+                             "result":  true,
+                             "ok":  true
+                         },
+    "ValidateKey_len64":  {
+                              "result":  true,
+                              "ok":  true
+                          },
+    "GenerateRandKey":  {
+                            "ok":  true,
+                            "value":  "",
+                            "len":  0
+                        },
+    "TryDecrypt_garbage":  {
+                               "result":  "!!!not-valid!!!"
+                           }
+}
