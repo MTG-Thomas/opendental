@@ -19,7 +19,7 @@ obfuscation/hash/key-format APIs with synthetic strings are probed. No ADA conte
 | `CreateSaltedHash` | **GATED**: throws `Unable to find assembly to verify.` from non-OD callers. Hash format unrecoverable black-box → port needs a migration strategy (e.g., re-hash on next login), not a reimplementation. |
 | `ValidateKey` | Returns `True` for `''`, `'synthetic'`, 64-zeros — Band-AID permissive/format-only. |
 | `GenerateRandKey` | Returns **empty string** from non-OD caller (gate swallow or uninitialized path). |
-| Execution environments | Framework 4.x: runs. Mono 6.12: `InvalidProgramException` on every gated/obfuscated method. Wine 11 (wine-mono): identical failure. Real Framework via winetricks: attempted separately. |
+| Execution environments | Framework 4.x native: runs. Mono 6.12: `InvalidProgramException` on every gated/obfuscated method. Wine 11 (wine-mono): identical failure. **Wine 11 + real Framework 4.8 (winetricks `dotnet48`): runs** — obfuscated IL executes (OS reports Win7 SP1, real CLR), `Conceal/Reveal` and `TryEncrypt/Decrypt` round-trip OK from a foreign caller, while direct `VerifyCallingAssembly` throws the true gate message `Method can only be called from an assembly built by Open Dental.` Renaming the harness to `OpenDental.exe` does **not** satisfy the gate (still throws) — the check is not filename-only, killing any rename-to-spoof shortcut definitively. Lab container `winebox` (local Docker, stopped) retains the Framework prefix for reruns. |
 
 ## Usage map for a future port (no CDT reimplementation attempted)
 

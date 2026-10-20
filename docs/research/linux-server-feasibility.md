@@ -437,9 +437,12 @@ original vectors. `ODCrypt` is hereby **removed from the Linux-port blocker list
 all three probes (`VerifyCallingAssembly`, `Conceal/RevealClearinghouse`, `TryEncrypt/Decrypt`)
 throw the identical `InvalidProgramException: Invalid IL ... pop` seen on Mono. So Wine answers
 "how to call" (API confirmed callable as a Windows process; gate semantics observable) but not
-"how to execute" without real .NET Framework via winetricks (`dotnet48` install attempted
-separately; result pending). Even under real Framework, expect the filename-allowlist gate to
-reject non-OD caller names — a follow-up probe should name its binary accordingly.
+"how to execute" without real .NET Framework via winetricks — since resolved: `dotnet48` installed
+cleanly, and under real CLR (Win7 SP1 profile) the obfuscated IL executes: `Conceal/Reveal` and
+`TryEncrypt/Decrypt` round-trip OK from a foreign caller, while direct `VerifyCallingAssembly`
+throws the true gate message (`Method can only be called from an assembly built by Open Dental.`).
+Renaming the harness to `OpenDental.exe` does not satisfy the gate — it is not filename-only.
+Local lab container `winebox` (stopped) retains the Framework prefix for reruns.
 
 **CDT API behavior mapped black-box on Framework (no Wine needed).** `TryEncrypt/TryDecrypt`,
 `Encrypt/Decrypt`, `Conceal/RevealClearinghouse`, `EncryptSftp/DecryptSftp` all work **ungated**
