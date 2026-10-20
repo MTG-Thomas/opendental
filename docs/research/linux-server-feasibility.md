@@ -482,6 +482,34 @@ coupling remains":
   reverse-engineering the SOAP DTO layer. This makes the REST API — not the middle tier — the
   recommended first wire-compat target for any Linux backend effort.
 
+### Addendum 2026-10-20 (part 4) — middle-tier ops detail from vendor docs
+
+`middletierinstallation` / `middletiertroubleshooting` confirm and extend the rehost assessment:
+
+- **Single-endpoint URI**: `http(s)://Server/Alias/ServiceMain.asmx` — one ASMX route where Alias is
+  the IIS application name. A Kestrel/`HttpListener` rehost needs exactly one POST route (plus the
+  SOAP envelope the clients already speak), corroborating the "3 call sites" analysis.
+- **Why 32-bit is mandatory**: `BadImageFormatException` / `Could not load file` / `Could not create
+  type` all resolve to Enable 32-Bit Applications = True — i.e., the x86 native/imaging DLLs
+  identified in the binary inventory. A Linux host drops this requirement only if it also drops
+  those DLLs from the load graph (the port slices them away; Wine/Mono cannot).
+- **Full IIS feature surface a rehost must cover**: ASP.NET 4.8 + ISAPI, .NET Extensibility 3.5/4.8,
+  WCF services, Windows Authentication, IIS Client Certificate Mapping, request filtering, CLR 4.0
+  app pool, 1 GB-scale `maxRequestLength`/`maxAllowedContentLength` (imaging payloads).
+- **Two subtle compat points**: (1) IIS app `.NET Globalization` culture settings are part of setup —
+  DTO XML number/date formatting is locale-sensitive, so a Linux host must pin the same culture;
+  (2) middle-tier login uses OD credentials with SSO backed by **Windows Credential Manager**
+  (Windows-only), plus an optional read-only `UserLow` MySQL account for reports.
+- **Ops notes**: updates must run from the tier server over a direct DB connection (never through the
+  tier); `Update Server` preference points at the tier; verbose logging (`VerboseLogging` in
+  `OpenDentalServerConfig.xml`) captures per-request timing/size/IP/user/method — a ready-made
+  observability checklist for a rehost.
+- **Config-secret coupling**: `Userods.cs:640` decrypts stored MySQL passwords via `CDT.Class1.Decrypt`
+  — another path that funnels through the CDT gate (see part 2); a Linux service host needs the
+  gate satisfied or secrets migrated.
+- The published `databaseschema` page failed to extract; no loss — `db/skeema/` (408 tables) plus
+  in-source `Enumerations.cs` code tables (`eServiceCode`, `InvalidType`, …) remain authoritative.
+
 ## Appendix C — Files added by this spike
 
 - `docs/research/linux-server-feasibility.md` (this file)
