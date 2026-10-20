@@ -74,6 +74,38 @@ async Task<(HttpStatusCode, string)> Get(string path, bool auth = true, string? 
 	var (code2, body2) = await Get("/api/v1/appointments?patNum=999999");
 	Check("appts_empty_array", code2 == HttpStatusCode.OK && body2.Trim() == "[]", $"{code2} {body2}");
 }
+// payments (paged list + single; seeded PayNum 1 for PatNum 1)
+{
+	var (code, body) = await Get("/api/v1/payments?limit=10&offset=0&patNum=1");
+	using var doc = JsonDocument.Parse(body);
+	var arr = doc.RootElement.EnumerateArray().ToList();
+	Check("pay_list_contains_seeded", code == HttpStatusCode.OK && arr.Any(e => e.GetProperty("PayNum").GetInt64() == 1),
+		$"{code} {body}");
+	var one = arr.FirstOrDefault(e => e.GetProperty("PayNum").GetInt64() == 1);
+	bool shapeOk = one.ValueKind != JsonValueKind.Undefined
+		&& one.GetProperty("PatNum").GetInt64() == 1
+		&& one.GetProperty("PayDate").GetString() == "2026-10-05"
+		&& Math.Abs(one.GetProperty("PayAmt").GetDouble() - 42.50) < 0.001
+		&& one.GetProperty("CheckNum").GetString() == "CHK1001"
+		&& one.GetProperty("BankBranch").GetString() == "Main"
+		&& one.GetProperty("ClinicNum").GetInt64() == 1
+		&& one.TryGetProperty("PayType", out _) && one.TryGetProperty("DateTStamp", out _);
+	Check("pay_list_shape", shapeOk, $"{code} {body}");
+	var (code2, body2) = await Get("/api/v1/payments/1");
+	using var doc2 = JsonDocument.Parse(body2);
+	var el = doc2.RootElement;
+	Check("pay_single_shape", code2 == HttpStatusCode.OK
+		&& el.GetProperty("PayNum").GetInt64() == 1
+		&& el.GetProperty("PatNum").GetInt64() == 1
+		&& el.GetProperty("PayDate").GetString() == "2026-10-05"
+		&& Math.Abs(el.GetProperty("PayAmt").GetDouble() - 42.50) < 0.001
+		&& el.GetProperty("CheckNum").GetString() == "CHK1001"
+		&& el.GetProperty("BankBranch").GetString() == "Main", $"{code2} {body2}");
+	var (code3, _) = await Get("/api/v1/payments/999999");
+	Check("pay_single_404", code3 == HttpStatusCode.NotFound);
+	var (code4, body4) = await Get("/api/v1/payments?patNum=999999");
+	Check("pay_empty_array", code4 == HttpStatusCode.OK && body4.Trim() == "[]", $"{code4} {body4}");
+}
 Console.WriteLine($"--- {pass} passed, {fail} failed ---");
 // --- events: poll the test sink until the seeded appointment is delivered exactly once ---
 {

@@ -139,6 +139,50 @@ app.MapGet("/api/v1/appointments", async (HttpRequest req, int? limit, int? offs
 	return Results.Ok(list);
 });
 
+// NOTE: payment has no DateTStamp column; SecDateTEdit (auto timestamp) is shaped as DateTStamp
+// (same yyyy-MM-dd HH:mm:ss format as appointments). All other names are payment table columns.
+app.MapGet("/api/v1/payments", async (HttpRequest req, int? limit, int? offset, long? patNum) => {
+	var auth = await Authorize(req);
+	if (auth is not null) {
+		return auth;
+	}
+	int lim = Math.Min(limit ?? 100, 1000);
+	int off = Math.Max(offset ?? 0, 0);
+	await using var conn = new MySqlConnection(DbConn());
+	await conn.OpenAsync();
+	string sql = "SELECT PayNum,PatNum,PayDate,PayAmt,CheckNum,BankBranch,PayType,ClinicNum,SecDateTEdit FROM payment"
+		+ (patNum is not null ? " WHERE PatNum=@pat" : "") + " ORDER BY PayNum LIMIT @lim OFFSET @off";
+	await using var cmd = new MySqlCommand(sql, conn);
+	if (patNum is not null) {
+		cmd.Parameters.AddWithValue("@pat", patNum.Value);
+	}
+	cmd.Parameters.AddWithValue("@lim", lim);
+	cmd.Parameters.AddWithValue("@off", off);
+	await using var r = await cmd.ExecuteReaderAsync();
+	List<Dictionary<string, object?>> list = new();
+	while (await r.ReadAsync()) {
+		list.Add(Shaping.ShapePayment(r));
+	}
+	return Results.Ok(list);
+});
+
+app.MapGet("/api/v1/payments/{payNum:long}", async (HttpRequest req, long payNum) => {
+	var auth = await Authorize(req);
+	if (auth is not null) {
+		return auth;
+	}
+	await using var conn = new MySqlConnection(DbConn());
+	await conn.OpenAsync();
+	await using var cmd = new MySqlCommand(
+		"SELECT PayNum,PatNum,PayDate,PayAmt,CheckNum,BankBranch,PayType,ClinicNum,SecDateTEdit FROM payment WHERE PayNum=@p", conn);
+	cmd.Parameters.AddWithValue("@p", payNum);
+	await using var r = await cmd.ExecuteReaderAsync();
+	if (!await r.ReadAsync()) {
+		return Err(404, $"Payment {payNum} not found.");
+	}
+	return Results.Ok(Shaping.ShapePayment(r));
+});
+
 // TEST-ONLY sink for the events poller smoke test. NOT part of the OD contract. No auth by design
 // (it stands in for a subscriber endpoint); never expose beyond test networks.
 ConcurrentQueue<Dictionary<string, object?>> sink = new();

@@ -35,6 +35,16 @@ public static class Shaping {
 		["ClinicNum"] = r.GetInt64(18), ["Guarantor"] = r.GetInt64(19),
 	};
 
+	public static Dictionary<string, object?> ShapePayment(MySqlDataReader r) => new() {
+		["PayNum"] = r.GetInt64(0), ["PatNum"] = r.GetInt64(1),
+		["PayDate"] = Dt(r.GetValue(2), dateOnly: true), ["PayAmt"] = r.GetDouble(3),
+		["CheckNum"] = r.IsDBNull(4) ? "" : r.GetString(4),
+		["BankBranch"] = r.IsDBNull(5) ? "" : r.GetString(5),
+		["PayType"] = r.GetInt64(6), ["ClinicNum"] = r.GetInt64(7),
+		// payment has no DateTStamp column; SecDateTEdit (auto timestamp) stands in, same format as appointments.
+		["DateTStamp"] = Dt(r.GetValue(8)),
+	};
+
 	public static Dictionary<string, object?> ShapeAppointment(MySqlDataReader r) => new() {
 		["AptNum"] = r.GetInt64(0), ["PatNum"] = r.GetInt64(1),
 		["AptStatus"] = EnumText(ApptStatusText, r.GetValue(2)), ["Pattern"] = r.GetString(3),

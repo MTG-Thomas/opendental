@@ -17,6 +17,8 @@ no-redelivery proving `DateTimeStart` advancement).
 | `GET /api/v1/preferences?PrefName=X` | `{PrefName, ValueString}` / 404 `{ErrorMessage}`. |
 | `GET /api/v1/patients/{patNum}` | Spec-shaped patient (enum strings: `Male`/`Patient`/`Married`; `Birthdate: yyyy-MM-dd`) / 404. |
 | `GET /api/v1/appointments?limit=&offset=&patNum=` | Array, `limit` default 100 / max 1000 (vendor batch cap), `[]` when empty. |
+| `GET /api/v1/payments?limit=&offset=&patNum=` | Array of `{PayNum, PatNum, PayDate (yyyy-MM-dd), PayAmt, CheckNum, BankBranch, PayType, ClinicNum, DateTStamp}` (`DateTStamp` = `SecDateTEdit`; payment has no `DateTStamp` column), `[]` when empty. |
+| `GET /api/v1/payments/{payNum}` | Single payment, same shape / 404 `{ErrorMessage}`. |
 | Failures | `{ErrorMessage}` with 400/401/404/503 — per spec ("a failure should return an explanation"). |
 
 Auth: `Authorization: ODFHIR {DevName}/{CustApiKey}` checked against the `apikey` table (real).

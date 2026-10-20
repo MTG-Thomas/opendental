@@ -8,3 +8,7 @@ INSERT INTO appointment (PatNum,AptStatus,Pattern,Confirmed,TimeLocked,`Op`,Prov
 VALUES (1,1,'//XXXX//',19,0,3,1,0,'2020-07-31 08:30:00',0,0,0,0,0,0,'0001-01-01 00:00:00','0001-01-01 00:00:00','0001-01-01 00:00:00',3,0,'0001-01-01 00:00:00','Seal, Seal');
 INSERT INTO apisubscription (EndPointUrl,Workstation,CustomerKey,WatchTable,PollingSeconds,UiEventType,DateTimeStart,Note)
 VALUES ('http://localhost:8080/__test/sink','ODLINUX','POC-CUST-KEY-1','Appointment',5,'','2020-01-01 00:00:00','synthetic events smoke test');
+INSERT INTO payment (PayType,PayDate,PayAmt,CheckNum,BankBranch,PayNote,IsSplit,PatNum,ClinicNum,DateEntry,DepositNum,Receipt,IsRecurringCC,SecUserNumEntry,PaymentSource,ProcessStatus,RecurringChargeDate,ExternalId,PaymentStatus,IsCcCompleted,MerchantFee)
+VALUES (1,'2026-10-05',42.50,'CHK1001','Main','',0,1,1,'2026-10-05',0,'',0,1,0,0,'0001-01-01','',0,0,0);
+INSERT INTO paysplit (SplitAmt,PatNum,ProcDate,PayNum,ProvNum,PayPlanNum,DatePay,ProcNum,DateEntry,UnearnedType,ClinicNum,SecUserNumEntry,FSplitNum,AdjNum,PayPlanChargeNum,PayPlanDebitType,SecurityHash)
+VALUES (42.50,1,'2026-10-05',1,1,0,'2026-10-05',0,'2026-10-05',0,1,1,0,0,0,0,'');
