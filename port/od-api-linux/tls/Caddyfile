@@ -1,0 +1,33 @@
+# od-tls-proxy Caddyfile — TEST-ONLY TLS termination for od-api-linux.
+#
+# TEST-ONLY: `tls internal` mints a private internal CA + leaf certificate at
+# first container start (stored in the Docker volume od-tls-data on the remote
+# host, NOT in this repo). Clients must use curl -k / trust the internal CA
+# explicitly. This is NOT a publicly trusted certificate.
+#
+# What it does: listen on :443 (no published host ports — odnet-internal only)
+# and reverse-proxy everything to http://od-api:8080, preserving paths, query
+# strings, and the Authorization header. The site name MUST match the container
+# name clients use (SNI): Caddy mints the internal cert for this name; a bare
+# `:443` catch-all has no name to mint for and the handshake fails.
+{
+	admin off
+}
+
+od-tls-proxy {
+	# TEST-ONLY self-signed/internal CA. Production must replace this with a
+	# real trust chain (ACME/DNS or mounted CA-signed cert) — see TLS.md.
+	tls internal
+
+	reverse_proxy http://od-api:8080 {
+		# Caddy forwards all request headers by default; these lines make the
+		# contract explicit: the backend's ODFHIR auth depends on this header.
+		header_up Authorization {http.request.header.Authorization}
+		# (Caddy already sets X-Forwarded-{For,Proto,Host} by default.)
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

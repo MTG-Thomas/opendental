@@ -1,0 +1,12 @@
+# TEST-ONLY TLS material must never be committed.
+# Keys/certs are generated at deploy time (Caddy `tls internal` mints them on
+# first start) and live in Docker volumes / the remote workdir ~/od-linux/tls/.
+*.key
+*.pem
+*.crt
+*.cer
+*.pfx
+*.p12
+/data/
+/config/
+/caddy_data/

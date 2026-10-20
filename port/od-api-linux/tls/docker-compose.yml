@@ -1,0 +1,32 @@
+# od-tls-proxy compose file — TEST-ONLY https front for od-api-linux.
+#
+# Deploy (on the Linux host; network odnet must already exist with od-api on it):
+#   mkdir -p ~/od-linux/tls && cp Caddyfile ~/od-linux/tls/Caddyfile
+#   docker compose -f docker-compose.yml up -d            # or the docker run line in TLS.md
+#   # keys/certs are minted at first start into the od-tls-data volume (remote host only)
+#
+# Constraints honoured: container name od-tls-proxy, odnet-internal, NO published
+# ports (no `ports:` section on purpose — verify from inside odnet, see TLS.md).
+# Never touches the od-api container (owned by another lane).
+name: od-tls
+
+services:
+  tls-proxy:
+    image: caddy:2-alpine
+    container_name: od-tls-proxy
+    command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - od-tls-data:/data
+      - od-tls-config:/config
+    networks:
+      - odnet
+    restart: "no"
+
+networks:
+  odnet:
+    external: true
+
+volumes:
+  od-tls-data:
+  od-tls-config:
