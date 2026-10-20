@@ -5,7 +5,9 @@ Linux, backed by MariaDB. Clean-room host + dispatch over the GPL schema; no ori
 Proves the API-services seam from the research (ODApi dispatch blob is 8 types; 117 `*ForApi`
 handlers are GPL) with a pattern each further resource can copy.
 
-**Status: 10/10 smoke checks pass on fleet-r02** (Debian 13, MariaDB 10.11 vendor-configured).
+**Status: 13/13 smoke checks pass on fleet-r02** (Debian 13, MariaDB 10.11 vendor-configured):
+10 endpoint/auth checks + 3 events checks (delivered-once, `Event-Type`/auth headers,
+no-redelivery proving `DateTimeStart` advancement).
 
 ## Contract (vs vendor apispec/apievents docs)
 
@@ -22,6 +24,15 @@ Auth: `Authorization: ODFHIR {DevName}/{CustApiKey}` checked against the `apikey
 records; `=enforce` refuses with 503). A production port must implement the HQ call before serving
 traffic — see research doc part 3. Enum text covers values used by the seed; unknown values fall
 back to their numeric form (documented delta, not silent).
+
+## Events poller (`EventPoller` BackgroundService)
+
+Implements the vendor Database-Events protocol: per-subscription `PollingSeconds`, 1000-row batches,
+3-day backfill clamp, `DateTimeStart` advances only on 2xx delivery, expired subscriptions skipped.
+WatchTables in this slice: `Appointment`, `Patient` (table name whitelisted, never interpolated raw).
+Outbound webhook carries `Authorization: <CustomerKey>`, `Workstation:`, `Event-Type: WatchTable: X`.
+`POST /__test/sink` + `GET /__test/sink` are test-only subscriber stand-ins (no auth by design, capped
+at 100 records) — never expose beyond test networks.
 
 ## Run (remote pattern; all disposable, odnet-internal, no published ports)
 
