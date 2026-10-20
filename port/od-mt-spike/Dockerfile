@@ -1,0 +1,11 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+COPY OdMtSpike.csproj .
+RUN dotnet restore
+COPY Program.cs Soap.cs DtoStub.cs ServiceMain.wsdl ./
+RUN dotnet publish -c Release -o /app
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+WORKDIR /app
+COPY --from=build /app .
+EXPOSE 8080
+ENTRYPOINT ["dotnet", "OdMtSpike.dll"]

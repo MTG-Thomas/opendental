@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>OdMtSpike</AssemblyName>
+    <Version>24.3.63.0</Version>
+    <Description>Linux Kestrel middle-tier spike: single ASMX-shaped POST route that parses dtoString out of the vendor SOAP envelope and answers in the client's expected shape. DtoProcessor is a documented stub (see README).</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="ServiceMain.wsdl">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+</Project>
