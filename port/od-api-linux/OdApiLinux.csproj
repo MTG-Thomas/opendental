@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>OdApiLinux</AssemblyName>
+    <Version>24.3.63.0</Version>
+    <Description>Linux-native Open Dental REST API host (vertical slice). Clean-room host + dispatch over the GPL business schema; no original binaries.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="MySqlConnector" Version="2.4.0" />
+    <Compile Remove="VerifyApi/**/*.cs" />
+  </ItemGroup>
+</Project>
