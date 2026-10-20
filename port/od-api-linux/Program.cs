@@ -11,6 +11,7 @@
 //   HQ credential validation (required by OD every 6h) is STUBBED - see HqValidation below.
 // Env: OD_DB_HOST/OD_DB/OD_DB_USER/OD_DB_PASS, HQ_VALIDATION=stub|enforce (default stub).
 using System.Collections.Concurrent;
+using System.Text.Json;
 using MySqlConnector;
 using OdApiLinux;
 
@@ -141,6 +142,142 @@ app.MapGet("/api/v1/appointments", async (HttpRequest req, int? limit, int? offs
 
 // NOTE: payment has no DateTStamp column; SecDateTEdit (auto timestamp) is shaped as DateTStamp
 // (same yyyy-MM-dd HH:mm:ss format as appointments). All other names are payment table columns.
+app.MapGet("/api/v1/appointments/{aptNum:long}", async (HttpRequest req, long aptNum) => {
+	var auth = await Authorize(req);
+	if (auth is not null) {
+		return auth;
+	}
+	await using var conn = new MySqlConnection(DbConn());
+	await conn.OpenAsync();
+	await using var cmd = new MySqlCommand(
+		"SELECT AptNum,PatNum,AptStatus,Pattern,Confirmed,`Op`,Note,ProvNum,AptDateTime,ClinicNum,ProcDescript,DateTStamp FROM appointment WHERE AptNum=@a", conn);
+	cmd.Parameters.AddWithValue("@a", aptNum);
+	await using var r = await cmd.ExecuteReaderAsync();
+	if (!await r.ReadAsync()) {
+		return Err(404, $"Appointment {aptNum} not found.");
+	}
+	return Results.Ok(Shaping.ShapeAppointment(r));
+});
+
+// Write path (slice): POST creates an appointment, 201 + Location per vendor spec.
+// A production port MUST enforce the OD write-path permission check here (OD checks
+// Security.IsAuthorized(Permissions.AppointmentCreate / AppointmentEdit, patNum) inside the
+// *ForApi insert/update path); this slice performs the apikey check only — see report.
+app.MapPost("/api/v1/appointments", async (HttpRequest req) => {
+	var auth = await Authorize(req);
+	if (auth is not null) {
+		return auth;
+	}
+	System.Text.Json.JsonDocument doc;
+	try {
+		doc = await System.Text.Json.JsonDocument.ParseAsync(req.Body);
+	}
+	catch {
+		return Err(400, "Malformed JSON body.");
+	}
+	using (doc) {
+		var root = doc.RootElement;
+		if (root.ValueKind != System.Text.Json.JsonValueKind.Object) {
+			return Err(400, "Malformed JSON body: object expected.");
+		}
+		static bool Long(JsonElement el, string name, bool required, long def, out long val, out IResult? err) {
+			val = def;
+		err = null;
+		if (!el.TryGetProperty(name, out var j)) {
+			if (required) {
+				err = Results.Json(new Dictionary<string, string> { ["ErrorMessage"] = $"{name} (number) is required." }, statusCode: 400);
+			}
+			return err is null && !required;
+		}
+		if (j.ValueKind != System.Text.Json.JsonValueKind.Number || !j.TryGetInt64(out val)) {
+			err = Results.Json(new Dictionary<string, string> { ["ErrorMessage"] = $"{name} must be a number." }, statusCode: 400);
+			return false;
+		}
+		return true;
+		}
+		static bool Str(JsonElement el, string name, bool required, string def, out string val, out IResult? err) {
+			val = def;
+		err = null;
+		if (!el.TryGetProperty(name, out var j)) {
+			if (required) {
+				err = Results.Json(new Dictionary<string, string> { ["ErrorMessage"] = $"{name} (string) is required." }, statusCode: 400);
+			}
+			return err is null && !required;
+		}
+		if (j.ValueKind != System.Text.Json.JsonValueKind.String || j.GetString() is not string s) {
+			err = Results.Json(new Dictionary<string, string> { ["ErrorMessage"] = $"{name} must be a string." }, statusCode: 400);
+			return false;
+		}
+		val = s;
+		return true;
+		}
+		if (!Long(root, "PatNum", true, 0, out long patNum, out var e1)) {
+			return e1!;
+		}
+		if (!Str(root, "AptDateTime", true, "", out string aptDtRaw, out var e2)) {
+			return e2!;
+		}
+		if (!DateTime.TryParse(aptDtRaw, out DateTime aptDt)) {
+			return Err(400, "AptDateTime must be a parseable datetime (yyyy-MM-dd HH:mm:ss).");
+		}
+		if (!Long(root, "Op", true, 0, out long op, out var e3)) {
+			return e3!;
+		}
+		if (!Long(root, "ProvNum", true, 0, out long provNum, out var e4)) {
+			return e4!;
+		}
+		if (!Long(root, "ClinicNum", true, 0, out long clinicNum, out var e5)) {
+			return e5!;
+		}
+		if (!Str(root, "Pattern", false, "", out string pattern, out var e6)) {
+			return e6!;
+		}
+		string? note = null;
+		if (root.TryGetProperty("Note", out var jNote)) {
+			if (jNote.ValueKind != System.Text.Json.JsonValueKind.String) {
+				return Err(400, "Note must be a string.");
+			}
+		note = jNote.GetString();
+		}
+		if (!Long(root, "Confirmed", false, 0, out long confirmed, out var e7)) {
+			return e7!;
+		}
+		await using var conn = new MySqlConnection(DbConn());
+		await conn.OpenAsync();
+		await using (var chk = new MySqlCommand("SELECT COUNT(*) FROM patient WHERE PatNum=@p", conn)) {
+			chk.Parameters.AddWithValue("@p", patNum);
+			if (Convert.ToInt64(await chk.ExecuteScalarAsync()) == 0) {
+				return Err(404, $"Patient {patNum} not found.");
+			}
+		}
+		// Columns mirror seed.sql: NOT-NULL-no-default siblings get explicit values (0 / zero-dates),
+		// all inputs parameterized. New rows are Scheduled (AptStatus=1).
+		const string zero = "0001-01-01 00:00:00";
+		await using var ins = new MySqlCommand(
+			"INSERT INTO appointment (PatNum,AptStatus,Pattern,Confirmed,TimeLocked,`Op`,Note,ProvNum,ProvHyg,AptDateTime,NextAptNum,UnschedStatus,IsNewPatient,Assistant,ClinicNum,IsHygiene,DateTimeArrived,DateTimeSeated,DateTimeDismissed,InsPlan1,InsPlan2,DateTimeAskedToArrive,ProcDescript)"
+			+ " VALUES (@pat,1,@pattern,@conf,0,@op,@note,@prov,0,@dt,0,0,0,0,@clinic,0,@z,@z,@z,0,0,@z,'')", conn);
+		ins.Parameters.AddWithValue("@pat", patNum);
+		ins.Parameters.AddWithValue("@pattern", pattern);
+		ins.Parameters.AddWithValue("@conf", confirmed);
+		ins.Parameters.AddWithValue("@op", op);
+		ins.Parameters.AddWithValue("@note", (object?)note ?? DBNull.Value);
+		ins.Parameters.AddWithValue("@prov", provNum);
+		ins.Parameters.AddWithValue("@dt", Shaping.ToMysqlDateTime(aptDt));
+		ins.Parameters.AddWithValue("@clinic", clinicNum);
+		ins.Parameters.AddWithValue("@z", zero);
+		await ins.ExecuteNonQueryAsync();
+		long id = ins.LastInsertedId;
+		await using var sel = new MySqlCommand(
+			"SELECT AptNum,PatNum,AptStatus,Pattern,Confirmed,`Op`,Note,ProvNum,AptDateTime,ClinicNum,ProcDescript,DateTStamp FROM appointment WHERE AptNum=@a", conn);
+		sel.Parameters.AddWithValue("@a", id);
+		await using var r = await sel.ExecuteReaderAsync();
+		await r.ReadAsync();
+		return Results.Created($"/api/v1/appointments/{id}", Shaping.ShapeAppointment(r));
+	}
+});
+
+// NOTE: payment has no DateTStamp column; SecDateTEdit (auto timestamp) is shaped as DateTStamp
+// (same yyyy-MM-dd HH:mm:ss format as appointments). All other names are payment table columns.
 app.MapGet("/api/v1/payments", async (HttpRequest req, int? limit, int? offset, long? patNum) => {
 	var auth = await Authorize(req);
 	if (auth is not null) {
@@ -200,6 +337,20 @@ app.MapPost("/__test/sink", async (HttpRequest req) => {
 	return Results.Ok();
 });
 app.MapGet("/__test/sink", () => Results.Ok(sink.ToArray()));
+
+// TEST-ONLY cleanup for the POST /api/v1/appointments smoke test. NOT part of the OD contract.
+// No auth by design (mirrors /__test/sink above); deletes a synthetic row by id. Never expose
+// beyond test networks, never ship in a production host.
+app.MapDelete("/__test/appointments/{aptNum:long}", async (long aptNum) => {
+	await using var conn = new MySqlConnection(DbConn());
+	await conn.OpenAsync();
+	await using var cmd = new MySqlCommand("DELETE FROM appointment WHERE AptNum=@a", conn);
+	cmd.Parameters.AddWithValue("@a", aptNum);
+	if (await cmd.ExecuteNonQueryAsync() == 0) {
+		return Err(404, $"Appointment {aptNum} not found.");
+	}
+	return Results.Ok(new Dictionary<string, object?> { ["deleted"] = aptNum });
+});
 
 app.Logger.LogInformation("od-api-linux listening on :8080 (HQ_VALIDATION={Mode})", Environment.GetEnvironmentVariable("HQ_VALIDATION") ?? "stub");
 app.Run();

@@ -17,6 +17,9 @@ no-redelivery proving `DateTimeStart` advancement).
 | `GET /api/v1/preferences?PrefName=X` | `{PrefName, ValueString}` / 404 `{ErrorMessage}`. |
 | `GET /api/v1/patients/{patNum}` | Spec-shaped patient (enum strings: `Male`/`Patient`/`Married`; `Birthdate: yyyy-MM-dd`) / 404. |
 | `GET /api/v1/appointments?limit=&offset=&patNum=` | Array, `limit` default 100 / max 1000 (vendor batch cap), `[]` when empty. |
+| `GET /api/v1/appointments/{aptNum}` | Single appointment, same shape as list items / 404 `{ErrorMessage}`. |
+| `POST /api/v1/appointments` | Creates from JSON (`PatNum`, `AptDateTime`, `Op`, `ProvNum`, `ClinicNum` + optional `Pattern`/`Note`/`Confirmed`); 201 with `Location: /api/v1/appointments/{id}` + created object; 404 unknown `PatNum`; 400 malformed body/datetime. New rows are `Scheduled`. |
+| `DELETE /__test/appointments/{id}` | Test-only cleanup for the POST smoke test (no auth by design, mirrors `/__test/sink`) — never for production. |
 | `GET /api/v1/payments?limit=&offset=&patNum=` | Array of `{PayNum, PatNum, PayDate (yyyy-MM-dd), PayAmt, CheckNum, BankBranch, PayType, ClinicNum, DateTStamp}` (`DateTStamp` = `SecDateTEdit`; payment has no `DateTStamp` column), `[]` when empty. |
 | `GET /api/v1/payments/{payNum}` | Single payment, same shape / 404 `{ErrorMessage}`. |
 | Failures | `{ErrorMessage}` with 400/401/404/503 — per spec ("a failure should return an explanation"). |
@@ -26,6 +29,18 @@ Auth: `Authorization: ODFHIR {DevName}/{CustApiKey}` checked against the `apikey
 records; `=enforce` refuses with 503). A production port must implement the HQ call before serving
 traffic — see research doc part 3. Enum text covers values used by the seed; unknown values fall
 back to their numeric form (documented delta, not silent).
+
+## Write path (`POST /api/v1/appointments`)
+
+The slice proves create-only: required fields validated (400), unknown `PatNum` rejected (404),
+201 returns `Location` plus the created object in single-GET shape. Omitted-field PUT semantics are
+not implemented (no PUT yet). New rows carry `Scheduled` status with zero/empty siblings per
+`seed.sql` (parameterized insert, never concatenated). The shared DB's events poller will deliver
+POSTed rows as webhook noise — expected and harmless; the smoke test deletes every row it creates
+(`DELETE /__test/appointments/{id}`, then count-verified) so the DB is left identical.
+**Permission gap (must close before production):** OD enforces
+`Security.IsAuthorized(Permissions.AppointmentCreate/AppointmentEdit, patNum)` inside the `*ForApi`
+write path; this slice performs the apikey check only.
 
 ## Events poller (`EventPoller` BackgroundService)
 

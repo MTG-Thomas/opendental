@@ -24,6 +24,18 @@ async Task<(HttpStatusCode, string)> Get(string path, bool auth = true, string? 
 	using var res = await anon.SendAsync(req);
 	return (res.StatusCode, await res.Content.ReadAsStringAsync());
 }
+async Task<(HttpStatusCode, string, string?)> PostJson(string path, string json) {
+	using var req = new HttpRequestMessage(HttpMethod.Post, baseUrl + path);
+	req.Headers.Authorization = new AuthenticationHeaderValue("ODFHIR", "POCDEV/POC-CUST-KEY-1");
+	req.Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+	using var res = await anon.SendAsync(req);
+	return (res.StatusCode, await res.Content.ReadAsStringAsync(), res.Headers.Location?.ToString());
+}
+async Task<(HttpStatusCode, string)> Delete(string path) {
+	using var req = new HttpRequestMessage(HttpMethod.Delete, baseUrl + path);
+	using var res = await anon.SendAsync(req);
+	return (res.StatusCode, await res.Content.ReadAsStringAsync());
+}
 
 // health (no auth by design)
 {
@@ -151,4 +163,71 @@ Console.WriteLine($"--- {pass} passed, {fail} failed ---");
 }
 
 Console.WriteLine($"--- {pass} passed, {fail} failed (incl. events) ---");
+// --- write path: POST creates, GET-back matches, 404/400 cases, DELETE cleanup ---
+// Runs AFTER the events assertions so the new row's webhook delivery cannot collide with the
+// AptNum:1 sink-substring counts above. Every created row is deleted before exit.
+{
+	long createdId = -1;
+	bool cleaned = false;
+	const string newDt = "2027-03-04 09:00:00";
+	{
+		string json = "{\"PatNum\":1,\"AptDateTime\":\"" + newDt + "\",\"Op\":3,\"ProvNum\":1,\"ClinicNum\":0,\"Pattern\":\"//X//\",\"Note\":\"lane2 write test\",\"Confirmed\":0}";
+		var (code, resp, loc) = await PostJson("/api/v1/appointments", json);
+		long id = -1;
+		bool shapeOk = false;
+		if (code == HttpStatusCode.Created) {
+			using var doc = JsonDocument.Parse(resp);
+			var el = doc.RootElement;
+			id = el.GetProperty("AptNum").GetInt64();
+			shapeOk = id > 0
+				&& el.GetProperty("PatNum").GetInt64() == 1
+				&& el.GetProperty("AptStatus").GetString() == "Scheduled"
+				&& el.GetProperty("AptDateTime").GetString() == newDt
+				&& el.GetProperty("Op").GetInt64() == 3
+				&& el.GetProperty("ProvNum").GetInt64() == 1
+				&& el.GetProperty("Note").GetString() == "lane2 write test";
+			createdId = id;
+		}
+		Check("appt_post_201", code == HttpStatusCode.Created && shapeOk, $"{code} {resp}");
+		Check("appt_post_location", createdId > 0 && loc == $"/api/v1/appointments/{createdId}", $"loc={loc} id={createdId}");
+	}
+	if (createdId > 0) {
+		var (code2, body2) = await Get($"/api/v1/appointments/{createdId}");
+		bool match = false;
+		if (code2 == HttpStatusCode.OK) {
+			using var doc = JsonDocument.Parse(body2);
+			match = doc.RootElement.GetProperty("AptNum").GetInt64() == createdId
+				&& doc.RootElement.GetProperty("AptDateTime").GetString() == newDt
+				&& doc.RootElement.GetProperty("Note").GetString() == "lane2 write test";
+		}
+		Check("appt_getback_matches", match, $"{code2} {body2}");
+	}
+	{
+		var (code3, body3, _) = await PostJson("/api/v1/appointments",
+			"{\"PatNum\":999999,\"AptDateTime\":\"2027-03-04 09:00:00\",\"Op\":3,\"ProvNum\":1,\"ClinicNum\":0}");
+		Check("appt_post_unknown_pat_404", code3 == HttpStatusCode.NotFound && body3.Contains("ErrorMessage"), $"{code3} {body3}");
+	}
+	{
+		var (code4, _, _) = await PostJson("/api/v1/appointments", "not json{{");
+		Check("appt_post_malformed_400", code4 == HttpStatusCode.BadRequest);
+		var (code5, body5, _) = await PostJson("/api/v1/appointments", "{\"PatNum\":1}");
+		Check("appt_post_missing_fields_400", code5 == HttpStatusCode.BadRequest && body5.Contains("ErrorMessage"), $"{code5} {body5}");
+		var (code6, _, _) = await PostJson("/api/v1/appointments",
+			"{\"PatNum\":1,\"AptDateTime\":\"not-a-date\",\"Op\":3,\"ProvNum\":1,\"ClinicNum\":0}");
+		Check("appt_post_bad_datetime_400", code6 == HttpStatusCode.BadRequest);
+	}
+	if (createdId > 0) {
+		var (code7, _) = await Delete($"/__test/appointments/{createdId}");
+		Check("appt_delete_200", code7 == HttpStatusCode.OK);
+		cleaned = code7 == HttpStatusCode.OK;
+		var (code8, _) = await Get($"/api/v1/appointments/{createdId}");
+		Check("appt_gone_404", code8 == HttpStatusCode.NotFound);
+		var (code9, _) = await Delete($"/__test/appointments/{createdId}");
+		Check("appt_delete_again_404", code9 == HttpStatusCode.NotFound);
+	}
+	if (createdId > 0 && !cleaned) {
+		await Delete($"/__test/appointments/{createdId}"); // best-effort: never leave synthetic rows
+	}
+}
+Console.WriteLine($"--- {pass} passed, {fail} failed (incl. write path) ---");
 return fail == 0 ? 0 : 1;
