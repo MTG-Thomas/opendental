@@ -18,6 +18,11 @@
   <ItemGroup>
     <ProjectReference Include="..\CodeBaseStandard\xCodeBaseStandard.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!--Same OSS MySqlConnector version the Windows business layer already uses (see DataConnectionBase/packages.config). Needed because DataConnection.cs/MySqlHelper.cs compile against the MySqlConnector namespace; the MySql.Data/Reference blobs above do not provide it.-->
+    <PackageReference Include="MySqlConnector" Version="2.4.0" />
+  </ItemGroup>
 	
 	<!--<ItemGroup>
 		<Reference Include="BouncyCastle.Crypto">

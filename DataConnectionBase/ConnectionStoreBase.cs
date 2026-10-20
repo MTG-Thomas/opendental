@@ -155,9 +155,15 @@ namespace DataConnectionBase {
 		private static Dictionary<ConnectionNames,CentralConnectionBase> InitConnectionStoreXml(string fullPath) {
 			return InitConnectionsFromXmlFile<ListCentralConnections,CentralConnectionBase>(fullPath,new Func<CentralConnectionBase,CentralConnectionBase>((conn) => {
 				if(!string.IsNullOrEmpty(conn.MySqlPassword)) {
+#if DOT_NET_STANDARD
+					//Middle-tier/Linux port stub: CDT.dll is a closed Windows-only blob with no Linux execution, so decrypting
+					//stored passwords is unavailable in the .NET Standard slice. Supply connection details out-of-band instead.
+					throw new NotSupportedException("ConnectionStoreBase cannot decrypt stored MySQL passwords in the .NET Standard slice (CDT.dll is Windows-only).");
+#else
 					if(!CDT.Class1.Decrypt(conn.MySqlPassword,out conn.MySqlPassword)) {
 						throw new Exception("Unable to decrypt MySQL password: "+fullPath);
 					}
+#endif
 				}
 				return conn;
 			}));
@@ -167,9 +173,15 @@ namespace DataConnectionBase {
 		private static Dictionary<ConnectionNames,CentralConnectionBase> InitOpenDentalWebConfigXml(string fullPath) {
 			return InitConnectionsFromXmlFile<ConnectionSettings,DatabaseConnection>(fullPath,new Func<DatabaseConnection,CentralConnectionBase>((conn) => {
 				if(!string.IsNullOrEmpty(conn.Password)) {
+#if DOT_NET_STANDARD
+					//Middle-tier/Linux port stub: CDT.dll is a closed Windows-only blob with no Linux execution, so decrypting
+					//stored passwords is unavailable in the .NET Standard slice. Supply connection details out-of-band instead.
+					throw new NotSupportedException("ConnectionStoreBase cannot decrypt stored passwords in the .NET Standard slice (CDT.dll is Windows-only).");
+#else
 					if(!CDT.Class1.Decrypt(conn.Password,out conn.Password)) {
 						throw new Exception("Unable to decrypt MySQL password: "+fullPath);
 					}
+#endif
 				}
 				return new CentralConnectionBase() {
 					CentralConnectionNum=0,

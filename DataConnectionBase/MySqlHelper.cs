@@ -5,7 +5,9 @@ using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+#if !DOT_NET_STANDARD
 using System.Web.UI.WebControls.WebParts;
+#endif
 
 namespace DataConnectionBase {
 	public class MySqlHelper {
