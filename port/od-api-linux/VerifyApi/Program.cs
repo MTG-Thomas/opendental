@@ -75,4 +75,48 @@ async Task<(HttpStatusCode, string)> Get(string path, bool auth = true, string? 
 	Check("appts_empty_array", code2 == HttpStatusCode.OK && body2.Trim() == "[]", $"{code2} {body2}");
 }
 Console.WriteLine($"--- {pass} passed, {fail} failed ---");
+// --- events: poll the test sink until the seeded appointment is delivered exactly once ---
+{
+	int apt1Count = 0;
+	bool headersOk = false;
+	for (int i = 0; i < 12; i++) {
+		await Task.Delay(5000);
+		var (code, body) = await Get("/__test/sink", auth: false);
+		if (code != HttpStatusCode.OK) {
+			continue;
+		}
+		using var doc = JsonDocument.Parse(body);
+		apt1Count = 0;
+		foreach (var rec in doc.RootElement.EnumerateArray()) {
+			string b = rec.GetProperty("body").GetString() ?? "";
+			if (b.Contains("\"AptNum\":1")) {
+				apt1Count++;
+				if (rec.GetProperty("eventType").GetString() == "WatchTable: Appointment"
+					&& rec.GetProperty("authPresent").GetBoolean()) {
+					headersOk = true;
+				}
+			}
+		}
+		if (apt1Count > 0) {
+			break;
+		}
+	}
+	Check("events_delivered_once", apt1Count == 1, $"count={apt1Count}");
+	Check("events_headers", headersOk);
+	// DateTimeStart must have advanced: no duplicate redelivery on subsequent polls.
+	await Task.Delay(12000);
+	{
+		var (_, body) = await Get("/__test/sink", auth: false);
+		using var doc = JsonDocument.Parse(body);
+		int total = 0;
+		foreach (var rec in doc.RootElement.EnumerateArray()) {
+			if ((rec.GetProperty("body").GetString() ?? "").Contains("\"AptNum\":1")) {
+				total++;
+			}
+		}
+		Check("events_no_redelivery", total == 1, $"count={total}");
+	}
+}
+
+Console.WriteLine($"--- {pass} passed, {fail} failed (incl. events) ---");
 return fail == 0 ? 0 : 1;

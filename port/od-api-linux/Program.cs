@@ -12,9 +12,11 @@
 // Env: OD_DB_HOST/OD_DB/OD_DB_USER/OD_DB_PASS, HQ_VALIDATION=stub|enforce (default stub).
 using System.Collections.Concurrent;
 using MySqlConnector;
+using OdApiLinux;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://0.0.0.0:8080");
+builder.Services.AddHostedService<EventPoller>();
 var app = builder.Build();
 
 string DbConn() {
@@ -30,21 +32,7 @@ string DbConn() {
 	return csb.ConnectionString;
 }
 
-// Enum text per vendor spec examples (ints from OpenDentBusiness/Db/Enumerations.cs).
-string[] ApptStatusText = ["None", "Scheduled", "Complete", "UnschedList", "ASAP", "Broken", "Planned", "PtNote", "PtNoteCompleted"];
-string[] GenderText = ["Male", "Female", "Unknown", "Other"];
-string[] PatStatusText = ["Patient", "Non-patient", "Inactive", "Archived", "Deceased", "NonPatient"];
-string[] PositionText = ["Single", "Married", "Child", "Widowed", "Divorced"];
-string EnumText(string[] map, object val) {
-	int i = Convert.ToInt32(val);
-	return (i >= 0 && i < map.Length) ? map[i] : i.ToString();
-}
-string Dt(object v, bool dateOnly = false) {
-	if (v is not DateTime dt) {
-		return "";
-	}
-	return dateOnly ? dt.ToString("yyyy-MM-dd") : dt.ToString("yyyy-MM-dd HH:mm:ss");
-}
+// Enum text per vendor spec examples (ints from OpenDentBusiness/Db/Enumerations.cs) live in Shaping.
 IResult Err(int code, string msg) => Results.Json(new Dictionary<string, string> { ["ErrorMessage"] = msg }, statusCode: code);
 
 // --- HQ validation stub -----------------------------------------------------------
@@ -123,16 +111,7 @@ app.MapGet("/api/v1/patients/{patNum:long}", async (HttpRequest req, long patNum
 	if (!await r.ReadAsync()) {
 		return Err(404, $"Patient {patNum} not found.");
 	}
-	return Results.Ok(new Dictionary<string, object?> {
-		["PatNum"] = r.GetInt64(0), ["LName"] = r.GetString(1), ["FName"] = r.GetString(2),
-		["MiddleI"] = r.GetString(3), ["Preferred"] = r.GetString(4),
-		["PatStatus"] = EnumText(PatStatusText, r.GetValue(5)), ["Gender"] = EnumText(GenderText, r.GetValue(6)),
-		["Position"] = EnumText(PositionText, r.GetValue(7)), ["Birthdate"] = Dt(r.GetValue(8), dateOnly: true),
-		["SSN"] = r.GetString(9), ["Address"] = r.GetString(10), ["City"] = r.GetString(11),
-		["State"] = r.GetString(12), ["Zip"] = r.GetString(13), ["HmPhone"] = r.GetString(14),
-		["Email"] = r.GetString(15), ["EstBalance"] = r.GetDouble(16), ["PriProv"] = r.GetInt64(17),
-		["ClinicNum"] = r.GetInt64(18), ["Guarantor"] = r.GetInt64(19),
-	});
+	return Results.Ok(Shaping.ShapePatient(r));
 });
 
 app.MapGet("/api/v1/appointments", async (HttpRequest req, int? limit, int? offset, long? patNum) => {
@@ -155,17 +134,28 @@ app.MapGet("/api/v1/appointments", async (HttpRequest req, int? limit, int? offs
 	await using var r = await cmd.ExecuteReaderAsync();
 	List<Dictionary<string, object?>> list = new();
 	while (await r.ReadAsync()) {
-		list.Add(new Dictionary<string, object?> {
-			["AptNum"] = r.GetInt64(0), ["PatNum"] = r.GetInt64(1),
-			["AptStatus"] = EnumText(ApptStatusText, r.GetValue(2)), ["Pattern"] = r.GetString(3),
-			["Confirmed"] = r.GetInt64(4), ["Op"] = r.GetInt64(5),
-			["Note"] = r.IsDBNull(6) ? "" : r.GetString(6), ["ProvNum"] = r.GetInt64(7),
-			["AptDateTime"] = Dt(r.GetValue(8)), ["ClinicNum"] = r.GetInt64(9),
-			["ProcDescript"] = r.IsDBNull(10) ? "" : r.GetString(10), ["DateTStamp"] = Dt(r.GetValue(11)),
-		});
+		list.Add(Shaping.ShapeAppointment(r));
 	}
 	return Results.Ok(list);
 });
+
+// TEST-ONLY sink for the events poller smoke test. NOT part of the OD contract. No auth by design
+// (it stands in for a subscriber endpoint); never expose beyond test networks.
+ConcurrentQueue<Dictionary<string, object?>> sink = new();
+app.MapPost("/__test/sink", async (HttpRequest req) => {
+	using var sr = new StreamReader(req.Body);
+	string body = await sr.ReadToEndAsync();
+	var rec = new Dictionary<string, object?> {
+		["at"] = DateTime.UtcNow.ToString("o"),
+		["eventType"] = req.Headers.TryGetValue("Event-Type", out var et) ? et.ToString() : "",
+		["authPresent"] = req.Headers.ContainsKey("Authorization"),
+		["body"] = body,
+	};
+	sink.Enqueue(rec);
+	while (sink.Count > 100 && sink.TryDequeue(out _)) { }
+	return Results.Ok();
+});
+app.MapGet("/__test/sink", () => Results.Ok(sink.ToArray()));
 
 app.Logger.LogInformation("od-api-linux listening on :8080 (HQ_VALIDATION={Mode})", Environment.GetEnvironmentVariable("HQ_VALIDATION") ?? "stub");
 app.Run();
